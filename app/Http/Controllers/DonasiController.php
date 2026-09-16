@@ -11,6 +11,35 @@ use Illuminate\Http\Request;
 class DonasiController extends Controller
 {
     /**
+     * Medan keuangan yang hanya boleh sampai ke Super Admin (FR SIKAS 512).
+     * Bukti transfer termasuk, karena nominal terbaca pada gambarnya.
+     */
+    private const MEDAN_KEUANGAN = [
+        'jumlah', 'biaya_transfer', 'kode_transaksi', 'rekening_pengirim', 'bukti_transfer',
+    ];
+
+    /** Sembunyikan medan keuangan dari admin biasa pada paginator donasi. */
+    private function sembunyikanKeuangan(Request $request, $paginator): void
+    {
+        if ($request->user()->isSuperAdmin()) {
+            return;
+        }
+        $paginator->getCollection()->makeHidden(self::MEDAN_KEUANGAN);
+    }
+
+    /**
+     * Verifikasi, pengubahan, dan penghapusan donasi khusus Super Admin
+     * (FR SIKAS 509–511, 513). Gate::before meloloskan authorize() untuk semua
+     * admin, jadi pembatasan peran harus dicek manual di sini.
+     */
+    private function wajibSuperAdmin(Request $request, string $tindakan): void
+    {
+        if (!$request->user()->isSuperAdmin()) {
+            abort(403, "Hanya Super Admin yang dapat {$tindakan}.");
+        }
+    }
+
+    /**
      * F24, F28: Menambah & Menampilkan data donasi
      * User terdaftar untuk create, Admin untuk view all
      */
@@ -110,6 +139,8 @@ class DonasiController extends Controller
      */
     public function updateStatus(Request $request, $id)
     {
+        $this->wajibSuperAdmin($request, 'memverifikasi pembayaran donasi');
+
         $donasi = Donasi::findOrFail($id);
 
         $request->validate([
@@ -143,17 +174,7 @@ class DonasiController extends Controller
                 'penerima' => $u?->email ?? '-',
                 'judul' => 'Terima kasih atas donasi Anda',
                 'trigger' => 'donasi_verified',
-            ]);
-            if ($u?->no_telepon) {
-                NotifikasiLog::record([
-                    'user_id' => $u->id,
-                    'tipe' => 'whatsapp',
-                    'penerima' => $u->no_telepon,
-                    'judul' => 'Terima kasih atas donasi Anda',
-                    'trigger' => 'donasi_verified',
-                ]);
-            }
-        }
+            ]);        }
 
         return response()->json([
             'success' => true,
@@ -214,15 +235,13 @@ class DonasiController extends Controller
             $query->whereDate('tanggal_donasi', '<=', $request->date_to);
         }
 
-        $donasi = $query->orderBy('tanggal_donasi', 'desc')->paginate(20);
+        // Hormati per_page dari klien (panel admin memakai 100 lalu mengikuti halaman
+        // berikutnya). Dibatasi 1–100 agar satu permintaan tidak memuat seluruh tabel.
+        $perPage = min(max((int) $request->get('per_page', 20), 1), 100);
+        $donasi = $query->orderBy('tanggal_donasi', 'desc')->paginate($perPage);
 
-        // Hide nominal for admin (show only for super_admin)
-        if ($request->user()->isAdmin() && !$request->user()->isSuperAdmin()) {
-            $donasi->getCollection()->transform(function ($item) {
-                unset($item->jumlah);
-                return $item;
-            });
-        }
+        // Admin biasa tidak menerima data keuangan sama sekali (FR SIKAS 512)
+        $this->sembunyikanKeuangan($request, $donasi);
 
         return response()->json([
             'success' => true,
@@ -276,6 +295,7 @@ class DonasiController extends Controller
     public function update(Request $request, $id)
     {
         $this->authorize('update', Donasi::class);
+        $this->wajibSuperAdmin($request, 'mengubah data donasi');
 
         $donasi = Donasi::findOrFail($id);
 
@@ -306,9 +326,10 @@ class DonasiController extends Controller
     /**
      * F26: Menghapus data donasi (Admin only)
      */
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $this->authorize('delete', Donasi::class);
+        $this->wajibSuperAdmin($request, 'menghapus data donasi');
 
         $donasi = Donasi::with('user')->findOrFail($id);
         $namaDonatur = $donasi->user?->nama_lengkap ?? 'Donasi';
@@ -340,6 +361,9 @@ class DonasiController extends Controller
                 $q->where('judul', 'like', "%{$query}%");
             })
             ->paginate(10);
+
+        // Dulu jalur ini tidak menyamarkan apa pun — nominal bocor ke admin biasa
+        $this->sembunyikanKeuangan($request, $donasi);
 
         return response()->json([
             'success' => true,

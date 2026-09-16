@@ -20,12 +20,18 @@ use App\Http\Controllers\NotifikasiController;
 Route::prefix('v1')->group(function () {
     
     // AUTH (F5, F7-F10)
-    // throttle:5,1 = maksimal 5 permintaan per menit per IP (NFR 3.4.4.5),
-    // menutup celah penebakan kata sandi & pengiriman OTP beruntun.
-    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
-    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
-    Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
-    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
+    // Pembatas laju bernama, didaftarkan di AppServiceProvider (NFR 3.4.4.5).
+    // Tiap kelompok punya jatah sendiri per alamat IP:
+    //   masuk       : 5 / menit  — menutup celah penebakan kata sandi
+    //   lupa-sandi  : 5 / menit  — mencegah pengiriman tautan beruntun
+    //   reset-sandi : 20 / menit — tautan sudah dijaga token 64 karakter, jadi
+    //                 pembatasan di sini hanya menahan penyalahgunaan; jatah
+    //                 terpisah agar memuat ulang halaman tidak memblokir login
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:masuk');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:masuk');
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:lupa-sandi');
+    Route::post('/reset-password/check', [AuthController::class, 'checkResetToken'])->middleware('throttle:reset-sandi');
+    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:reset-sandi');
     
     // KEGIATAN - Public (F4, F22, F40, F41, F53, F54)
     Route::get('/kegiatan', [KegiatanController::class, 'index']);

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\KodeOtpReset;
+use App\Mail\TautanResetSandi;
 use App\Models\NotifikasiLog;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -185,7 +186,7 @@ class AuthController extends Controller
     }
 
     /**
-     * Forgot password - kirim OTP - F10: Mengubah password (kirim OTP ke email)
+     * Lupa kata sandi — kirimkan tautan penyetelan ulang ke surel akun (F10).
      */
     public function forgotPassword(Request $request)
     {
@@ -196,74 +197,129 @@ class AuthController extends Controller
         $email = strtolower(trim($request->email));
         $user  = User::whereRaw('LOWER(email) = ?', [$email])->firstOrFail();
 
-        // Kode 6 digit, disimpan di cache (CACHE_STORE=database) selama 10 menit.
-        // Memakai cache agar tidak perlu tabel baru; kode hilang sendiri saat kedaluwarsa.
-        $kode = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        Cache::put(self::otpKey($email), $kode, now()->addMinutes(10));
+        // Tautan sekali pakai. Token acak 64 karakter; yang disimpan hanya sidik
+        // SHA-256-nya, sehingga isi cache tidak bisa dipakai ulang bila bocor.
+        // Cache dipakai (CACHE_STORE=database) agar tidak perlu tabel baru dan
+        // tautan hangus sendiri saat kedaluwarsa.
+        $token = Str::random(64);
+        $lama = Cache::get(self::kunciTokenPengguna($user->id));
+        if ($lama) {
+            Cache::forget($lama);   // tautan lama dibatalkan
+        }
+        Cache::put(self::kunciToken($token), [
+            'user_id' => $user->id,
+            'email'   => $email,
+        ], now()->addMinutes(self::RESET_BERLAKU_MENIT));
+        // Yang disimpan hanya kunci cache-nya (sudah memuat sidik), bukan token mentahnya
+        Cache::put(self::kunciTokenPengguna($user->id), self::kunciToken($token), now()->addMinutes(self::RESET_BERLAKU_MENIT));
+
+        $tautan = rtrim((string) config('app.frontend_url'), '/')
+            . '/reset-password?token=' . $token
+            . '&email=' . urlencode($user->email);
 
         // Kegagalan kirim surel tidak boleh menggagalkan permintaan (bandingkan NFR 3.4.2.2)
         $status = 'terkirim';
         try {
-            Mail::to($user->email)->send(new KodeOtpReset($user->nama_lengkap, $kode, 10));
+            Mail::to($user->email)->send(new TautanResetSandi(
+                $user->nama_lengkap,
+                $tautan,
+                self::RESET_BERLAKU_MENIT
+            ));
         } catch (\Throwable $e) {
             $status = 'gagal';
-            Log::error('Gagal mengirim OTP pemulihan kata sandi: ' . $e->getMessage());
+            Log::error('Gagal mengirim tautan pemulihan kata sandi: ' . $e->getMessage());
         }
 
         NotifikasiLog::record([
             'user_id'  => $user->id,
             'tipe'     => 'email',
             'penerima' => $user->email,
-            'judul'    => 'Kode verifikasi pemulihan kata sandi',
-            'isi'      => 'Kode OTP dikirim, berlaku 10 menit.',
+            'judul'    => 'Tautan penyetelan ulang kata sandi',
+            'isi'      => 'Tautan dikirim, berlaku ' . self::RESET_BERLAKU_MENIT . ' menit.',
             'trigger'  => 'password_reset_requested',
             'status'   => $status,
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Kode verifikasi telah dikirim ke email Anda. Kode berlaku 10 menit.',
+            'message' => 'Tautan penyetelan ulang kata sandi telah dikirim ke email Anda. '
+                . 'Tautan berlaku ' . self::RESET_BERLAKU_MENIT . ' menit.',
         ]);
     }
 
-    /** Kunci cache penyimpan OTP pemulihan kata sandi. */
-    private static function otpKey(string $email): string
+    /** Lama tautan pemulihan kata sandi berlaku, dalam menit. */
+    private const RESET_BERLAKU_MENIT = 60;
+
+    /** Kunci cache satu tautan pemulihan; yang disimpan hanya sidik tokennya. */
+    private static function kunciToken(string $token): string
     {
-        return 'otp_reset:' . $email;
+        return 'reset_sandi:' . hash('sha256', $token);
+    }
+
+    /** Penanda tautan aktif milik seorang pengguna, agar tautan lama dapat dibatalkan. */
+    private static function kunciTokenPengguna(string $userId): string
+    {
+        return 'reset_sandi_user:' . $userId;
     }
 
     /**
-     * Reset password with OTP
+     * Ambil data tautan dari cache lalu pastikan cocok dengan surel yang dikirim.
+     * Melempar ValidationException bila tautan tidak sah atau sudah kedaluwarsa.
+     */
+    private static function ambilDataTautan(string $token, string $email): array
+    {
+        $data  = Cache::get(self::kunciToken($token));
+        $email = strtolower(trim($email));
+
+        if (!$data || !hash_equals((string) ($data['email'] ?? ''), $email)) {
+            throw ValidationException::withMessages([
+                'token' => ['Tautan penyetelan ulang tidak berlaku atau sudah kedaluwarsa. Silakan minta tautan baru.'],
+            ]);
+        }
+
+        return $data;
+    }
+
+    /**
+     * Memeriksa keabsahan tautan sebelum formulir kata sandi baru ditampilkan,
+     * agar pengguna tidak mengisi formulir yang pasti ditolak. Token TIDAK
+     * dihapus di sini karena masih dipakai saat penyimpanan kata sandi.
+     */
+    public function checkResetToken(Request $request)
+    {
+        $request->validate([
+            'token' => 'required|string',
+            'email' => 'required|email',
+        ]);
+
+        self::ambilDataTautan($request->token, $request->email);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tautan masih berlaku.',
+        ]);
+    }
+
+    /**
+     * Simpan kata sandi baru berdasarkan tautan penyetelan ulang.
      */
     public function resetPassword(Request $request)
     {
         $request->validate([
+            'token' => 'required|string',
             'email' => 'required|email|exists:users,email',
-            'otp' => 'required|string',
             'new_password' => 'required|string|min:8|confirmed',
         ]);
 
-        $email    = strtolower(trim($request->email));
-        $tersimpan = Cache::get(self::otpKey($email));
+        $data = self::ambilDataTautan($request->token, $request->email);
 
-        if (!$tersimpan) {
-            throw ValidationException::withMessages([
-                'otp' => ['Kode verifikasi sudah kedaluwarsa. Silakan minta kode baru.'],
-            ]);
-        }
-
-        if (!hash_equals((string) $tersimpan, (string) $request->otp)) {
-            throw ValidationException::withMessages([
-                'otp' => ['Kode verifikasi salah.'],
-            ]);
-        }
-
-        $user = User::whereRaw('LOWER(email) = ?', [$email])->firstOrFail();
+        $user = User::findOrFail($data['user_id']);
         $user->password = Hash::make($request->new_password);
         $user->save();
 
-        // Kode hanya berlaku sekali pakai
-        Cache::forget(self::otpKey($email));
+        // Tautan hanya berlaku sekali pakai
+        Cache::forget(self::kunciToken($request->token));
+        Cache::forget(self::kunciTokenPengguna($user->id));
 
         // Cabut seluruh token aktif agar sesi lama tidak dapat dipakai lagi
         $user->tokens()->delete();

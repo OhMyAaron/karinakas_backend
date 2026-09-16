@@ -26,10 +26,11 @@ class NotifikasiController extends Controller
     }
 
     /**
-     * Kirim notifikasi donasi (email/WA) setelah pembayaran berhasil
-     * Dipanggil otomatis dari DonasiController
+     * Kirim ucapan terima kasih setelah pembayaran donasi diverifikasi.
+     * Dipanggil otomatis dari DonasiController. Surel adalah satu-satunya
+     * kanal pemberitahuan sistem; pengiriman WhatsApp ditiadakan.
      */
-    public function kirimNotifikasiDonasi($donasiId, $channel = 'both')
+    public function kirimNotifikasiDonasi($donasiId)
     {
         $donasi = Donasi::with(['user', 'kegiatan'])->findOrFail($donasiId);
 
@@ -41,15 +42,7 @@ class NotifikasiController extends Controller
         $success = false;
 
         try {
-            // Kirim Email
-            if (in_array($channel, ['email', 'both'])) {
-                $this->kirimEmail($donasi);
-            }
-
-            // Kirim WhatsApp
-            if (in_array($channel, ['whatsapp', 'both'])) {
-                $this->kirimWhatsApp($donasi);
-            }
+            $this->kirimEmail($donasi);
 
             // Update flag notifikasi_terkirim
             $donasi->update(['notifikasi_terkirim' => true]);
@@ -59,7 +52,7 @@ class NotifikasiController extends Controller
             // Log notifikasi
             $this->logNotifikasi([
                 'donasi_id' => $donasi->id,
-                'channel' => $channel,
+                'channel' => 'email',
                 'status' => 'sent',
                 'sent_at' => now(),
             ]);
@@ -69,7 +62,7 @@ class NotifikasiController extends Controller
             
             $this->logNotifikasi([
                 'donasi_id' => $donasi->id,
-                'channel' => $channel,
+                'channel' => 'email',
                 'status' => 'failed',
                 'error' => $e->getMessage(),
             ]);
@@ -112,33 +105,6 @@ class NotifikasiController extends Controller
     }
 
     /**
-     * Kirim WhatsApp ucapan terima kasih
-     */
-    private function kirimWhatsApp($donasi)
-    {
-        $template = $this->getTemplate('ucapan_terima_kasih_donasi_wa');
-
-        $message = str_replace([
-            '{nama}',
-            '{jumlah}',
-            '{tanggal}',
-            '{tujuan}',
-        ], [
-            $donasi->user->nama_lengkap,
-            $donasi->formatted_jumlah,
-            $donasi->tanggal_donasi->format('d F Y'),
-            $donasi->tujuan_donasi,
-        ], $template);
-
-        // TODO: Implement WhatsApp Business API integration
-        // Send via Twilio, MessageBird, or similar service
-
-        Log::info('WhatsApp terima kasih dikirim ke: ' . $donasi->user->no_telepon);
-
-        return true;
-    }
-
-    /**
      * Get template pesan notifikasi
      */
     private function getTemplate($tipe)
@@ -159,21 +125,6 @@ class NotifikasiController extends Controller
                 <p>Donasi Anda sangat berarti bagi kami dan akan digunakan untuk mendukung kegiatan sosial Karinakas.</p>
                 <p>Salam kasih,<br>Tim Karinakas</p>
             ',
-            'ucapan_terima_kasih_donasi_wa' => "
-Halo {nama},
-
-Terima kasih atas donasi Anda! 🙏
-
-Detail donasi:
-💰 Jumlah: {jumlah}
-📅 Tanggal: {tanggal}
-🎯 Tujuan: {tujuan}
-
-Donasi Anda sangat membantu kegiatan sosial kami.
-
-Berkah Dalem,
-Karinakas
-            ",
             'konfirmasi_relawan' => '...',
             'perubahan_status_donasi' => '...',
         ];

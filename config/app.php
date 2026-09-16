@@ -56,6 +56,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Alamat Aplikasi Frontend
+    |--------------------------------------------------------------------------
+    |
+    | Dipakai untuk menyusun tautan yang dikirimkan lewat surel, misalnya tautan
+    | penyetelan ulang kata sandi. Isi FRONTEND_URL pada .env dengan alamat situs
+    | React; bila kosong, APP_URL dipakai sebagai nilai bawaan.
+    |
+    */
+
+    'frontend_url' => env('FRONTEND_URL', env('APP_URL', 'http://localhost')),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

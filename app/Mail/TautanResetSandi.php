@@ -6,24 +6,24 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 
-class KodeOtpReset extends Mailable
+class TautanResetSandi extends Mailable
 {
     use Queueable, SerializesModels;
 
     public $namaUser;
-    public $kode;
+    public $tautan;
     public $berlakuMenit;
 
-    public function __construct($namaUser, $kode, $berlakuMenit = 10)
+    public function __construct($namaUser, $tautan, $berlakuMenit = 60)
     {
         $this->namaUser     = $namaUser;
-        $this->kode         = $kode;
+        $this->tautan       = $tautan;
         $this->berlakuMenit = $berlakuMenit;
     }
 
     public function build()
     {
-        return $this->subject('Kode Verifikasi Pemulihan Kata Sandi — Karinakas')
-                    ->view('emails.kode-otp-reset');
+        return $this->subject('Penyetelan Ulang Kata Sandi — Karinakas')
+                    ->view('emails.tautan-reset-sandi');
     }
 }

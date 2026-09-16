@@ -12,27 +12,35 @@
       <div style="text-align:center; margin-bottom:8px;">
         <div style="display:inline-block; width:64px; height:64px; line-height:64px; border-radius:50%; background:#FFF3E6; color:#d97000; font-size:30px;">&#128273;</div>
       </div>
-      <h1 style="font-size:22px; text-align:center; margin:12px 0 6px;">Pemulihan Kata Sandi</h1>
+      <h1 style="font-size:22px; text-align:center; margin:12px 0 6px;">Penyetelan Ulang Kata Sandi</h1>
 
       <p style="font-size:16px; line-height:1.7;">Halo <strong>{{ $namaUser }}</strong>,</p>
       <p style="font-size:16px; line-height:1.7;">
-        Kami menerima permintaan pemulihan kata sandi untuk akun Anda. Masukkan kode verifikasi
-        berikut pada halaman pemulihan kata sandi:
+        Kami menerima permintaan penyetelan ulang kata sandi untuk akun Anda. Tekan tombol di bawah ini
+        untuk membuat kata sandi baru.
       </p>
 
-      <div style="text-align:center; margin:24px 0;">
-        <div style="display:inline-block; background:#FFF5F5; border:2px dashed #C0392B; border-radius:14px; padding:18px 32px;">
-          <div style="font-size:34px; font-weight:800; letter-spacing:10px; color:#C0392B;">{{ $kode }}</div>
-        </div>
+      <div style="text-align:center; margin:28px 0;">
+        <a href="{{ $tautan }}"
+           style="display:inline-block; background:#C0392B; color:#ffffff; text-decoration:none; font-size:16px; font-weight:700; padding:15px 34px; border-radius:999px;">
+          Setel Ulang Kata Sandi
+        </a>
       </div>
 
+      <p style="font-size:14px; line-height:1.7; color:#555;">
+        Tombol tidak berfungsi? Salin dan tempel tautan berikut pada peramban Anda:
+      </p>
+      <p style="font-size:13px; line-height:1.6; word-break:break-all; background:#FBF6EF; border-radius:10px; padding:12px 16px;">
+        <a href="{{ $tautan }}" style="color:#C0392B;">{{ $tautan }}</a>
+      </p>
+
       <p style="font-size:16px; line-height:1.7;">
-        Kode ini hanya berlaku <strong>{{ $berlakuMenit }} menit</strong> dan hanya dapat digunakan satu kali.
+        Tautan ini berlaku <strong>{{ $berlakuMenit }} menit</strong> dan hanya dapat digunakan satu kali.
       </p>
 
       <div style="background:#FBF6EF; border-radius:12px; padding:16px 20px; margin:24px 0; font-size:14px; color:#555;">
         <strong>Bukan Anda yang meminta?</strong><br>
-        Abaikan surel ini. Kata sandi Anda tidak akan berubah selama kode di atas tidak dimasukkan.
+        Abaikan surel ini. Kata sandi Anda tidak akan berubah selama tautan di atas tidak dibuka.
       </div>
 
       <div style="background:#FBF6EF; border-radius:12px; padding:16px 20px; margin:24px 0; font-size:14px; color:#555;">

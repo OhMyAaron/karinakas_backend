@@ -187,17 +187,6 @@ class RelawanController extends Controller
                 'trigger' => 'relawan_approved',
                 'status' => $emailStatus,
             ]);
-
-            // ── WhatsApp (belum aktif — perlu gateway; baru dicatat) ──
-            if ($u?->no_telepon) {
-                NotifikasiLog::record([
-                    'user_id' => $u->id,
-                    'tipe' => 'whatsapp',
-                    'penerima' => $u->no_telepon,
-                    'judul' => 'Pendaftaran relawan Anda disetujui',
-                    'trigger' => 'relawan_approved',
-                ]);
-            }
         }
 
         return response()->json([
@@ -287,7 +276,7 @@ class RelawanController extends Controller
             });
         }
 
-        $perPage = (int) $request->get('per_page', 100);
+        $perPage = min(max((int) $request->get('per_page', 100), 1), 100);   // dibatasi 1–100
         $relawan = $query->orderBy('tanggal_daftar', 'desc')->paginate($perPage);
 
         return response()->json([
