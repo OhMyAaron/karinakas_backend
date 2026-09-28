@@ -253,12 +253,17 @@ class AdminController extends Controller
     }
 
     /**
-     * F36, F37, F38: Mengelola data pengguna
-     * Admin only
+     * F36, F37, F38: Mengelola data pengguna (Super Admin only).
+     *
+     * Pemeriksaan memakai isSuperAdmin(), bukan $this->authorize(). Gate::before pada
+     * AppServiceProvider memberikan seluruh ability kepada admin maupun super_admin,
+     * sehingga authorize() selalu lolos dan admin biasa ikut membaca daftar akun.
      */
     public function users(Request $request)
     {
-        $this->authorize('viewAny', User::class);
+        if (!$request->user()->isSuperAdmin()) {
+            abort(403, 'Hanya Super Admin yang dapat melihat daftar akun pengguna.');
+        }
 
         $query = User::query();
 
@@ -427,12 +432,17 @@ class AdminController extends Controller
     }
 
     /**
-     * F36: Menghapus data pengguna
-     * Admin only
+     * F36: Menghapus data pengguna (Super Admin only).
+     *
+     * Penjagaan ini penting karena donasi.user_id memakai ON DELETE CASCADE, sehingga
+     * menghapus akun ikut melenyapkan seluruh catatan donasi miliknya. Admin biasa yang
+     * memang dilarang melihat data keuangan karenanya tidak boleh menghapus akun.
      */
-    public function deleteUser($id)
+    public function deleteUser(Request $request, $id)
     {
-        $this->authorize('delete', User::class);
+        if (!$request->user()->isSuperAdmin()) {
+            abort(403, 'Hanya Super Admin yang dapat menghapus akun pengguna.');
+        }
 
         $user = User::findOrFail($id);
 
@@ -447,7 +457,7 @@ class AdminController extends Controller
         $nama = $user->nama_lengkap;
         $user->delete();
 
-        AuditLog::record(auth()->user(), 'Menghapus pengguna', $nama);
+        AuditLog::record($request->user(), 'Menghapus pengguna', $nama);
 
         return response()->json([
             'success' => true,
