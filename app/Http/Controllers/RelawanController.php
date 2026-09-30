@@ -27,7 +27,7 @@ class RelawanController extends Controller
             'minat' => 'nullable|string|max:100',
             'kemampuan_diri' => 'nullable|string',
             'motivasi' => 'nullable|string',
-            'nomor_ktp' => 'nullable|string|max:20',
+            'nomor_ktp' => 'required|digits:16',
             'kebutuhan_khusus' => 'nullable|string',             // keterbatasan diri
         ]);
 
@@ -84,7 +84,7 @@ class RelawanController extends Controller
             'minat' => $validated['minat'] ?? null,
             'kemampuan_diri' => $validated['kemampuan_diri'] ?? null,
             'motivasi' => $validated['motivasi'] ?? null,
-            'nomor_ktp' => $validated['nomor_ktp'] ?? null,
+            'nomor_ktp' => $validated['nomor_ktp'],
             'kebutuhan_khusus' => $validated['kebutuhan_khusus'] ?? null,
             'status' => 'pending',
         ]);
