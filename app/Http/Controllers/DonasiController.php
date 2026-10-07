@@ -163,18 +163,24 @@ class DonasiController extends Controller
 
         // Trigger notifikasi jika status berubah menjadi 'berhasil'
         if ($newStatus === 'berhasil' && $oldStatus !== 'berhasil') {
-            // Call NotifikasiController to send thank you message
-            app(NotifikasiController::class)->kirimNotifikasiDonasi($donasi->id);
+            // Kirim surel donasi terverifikasi; hasilnya null bila surel sudah pernah terkirim
+            $hasil = app(NotifikasiController::class)->kirimNotifikasiDonasi($donasi->id);
 
             // Catat riwayat notifikasi ke database (untuk panel admin & profil user)
-            $u = $fresh->user;
-            NotifikasiLog::record([
-                'user_id' => $u?->id,
-                'tipe' => 'email',
-                'penerima' => $u?->email ?? '-',
-                'judul' => 'Terima kasih atas donasi Anda',
-                'trigger' => 'donasi_verified',
-            ]);        }
+            // dengan status sesuai hasil pengiriman yang sebenarnya
+            if ($hasil !== null) {
+                $terkirim = (bool) ($hasil->getData(true)['success'] ?? false);
+                $u = $fresh->user;
+                NotifikasiLog::record([
+                    'user_id' => $u?->id,
+                    'tipe' => 'email',
+                    'penerima' => $u?->email ?? '-',
+                    'judul' => 'Donasi Anda telah diverifikasi',
+                    'trigger' => 'donasi_verified',
+                    'status' => $terkirim ? 'terkirim' : 'gagal',
+                ]);
+            }
+        }
 
         return response()->json([
             'success' => true,

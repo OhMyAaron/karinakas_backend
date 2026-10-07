@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\DonasiDiverifikasi;
 use App\Models\Donasi;
 use App\Models\NotifikasiLog;
 use Illuminate\Http\Request;
@@ -37,6 +38,14 @@ class NotifikasiController extends Controller
         // Skip jika notifikasi sudah terkirim
         if ($donasi->notifikasi_terkirim) {
             return;
+        }
+
+        // Surel hanya untuk donasi yang sudah diverifikasi
+        if ($donasi->status_pembayaran !== 'berhasil') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Notifikasi hanya dikirim untuk donasi berstatus berhasil',
+            ], 422);
         }
 
         $success = false;
@@ -79,28 +88,25 @@ class NotifikasiController extends Controller
      */
     private function kirimEmail($donasi)
     {
-        $template = $this->getTemplate('ucapan_terima_kasih_donasi');
+        $user = $donasi->user;
 
-        $data = [
-            'nama' => $donasi->user->nama_lengkap,
-            'jumlah' => $donasi->formatted_jumlah,
-            'tanggal' => $donasi->tanggal_donasi->format('d F Y'),
-            'id_transaksi' => $donasi->id,
-            'metode' => $donasi->metode_pembayaran,
-            'tujuan' => $donasi->tujuan_donasi,
-            'kegiatan' => $donasi->kegiatan ? $donasi->kegiatan->judul : 'Donasi Umum',
-        ];
+        // Tanpa alamat surel tujuan, pengiriman dianggap gagal (ditangkap pemanggil)
+        if (!$user || !$user->email) {
+            throw new \RuntimeException('Donatur tidak memiliki alamat surel');
+        }
 
-        // TODO: Implement actual email sending with Laravel Mail
-        /*
-        Mail::send('emails.donasi-terima-kasih', $data, function($message) use ($donasi) {
-            $message->to($donasi->user->email, $donasi->user->nama_lengkap)
-                    ->subject('Terima Kasih atas Donasi Anda - Karinakas');
-        });
-        */
+        Mail::to($user->email)->send(new DonasiDiverifikasi(
+            $user->nama_lengkap,
+            $donasi->formatted_jumlah,
+            $donasi->tanggal_donasi->locale('id')->translatedFormat('d F Y'),
+            $donasi->metode_pembayaran,
+            $donasi->tujuan_donasi,
+            $donasi->kegiatan?->judul,
+            $donasi->id
+        ));
 
-        Log::info('Email terima kasih dikirim ke: ' . $donasi->user->email);
-        
+        Log::info('Email donasi terverifikasi dikirim ke: ' . $user->email);
+
         return true;
     }
 
