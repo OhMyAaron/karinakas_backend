@@ -35,7 +35,7 @@
           @if($tujuan)
           <tr><td style="padding:4px 0; color:#777;">Tujuan</td><td style="padding:4px 0; text-align:right;">{{ $tujuan }}</td></tr>
           @endif
-          <tr><td style="padding:4px 0; color:#777;">Kegiatan</td><td style="padding:4px 0; text-align:right;">{{ $kegiatan ?: 'Donasi umum' }}</td></tr>
+          <tr><td style="padding:4px 0; color:#777;">Kegiatan</td><td style="padding:4px 0; text-align:right;">{{ $kegiatan ?: '-' }}</td></tr>
         </table>
       </div>
 
