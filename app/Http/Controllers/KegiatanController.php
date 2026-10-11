@@ -39,9 +39,9 @@ class KegiatanController extends Controller
         $sortOrder = $request->get('sort_order', 'desc');
         $query->orderBy($sortBy, $sortOrder);
 
-        $kegiatan = $query->with(['relawan' => function($q) {
-            $q->where('status', 'diterima');
-        }])->paginate($request->get('per_page', 12));
+        // Rute ini publik: JANGAN memuat relasi relawan (memuat nomor KTP, telepon, motivasi, dll.).
+        // Jumlah relawan sudah tersedia pada kolom jumlah_relawan_terdaftar.
+        $kegiatan = $query->paginate($request->get('per_page', 12));
 
         return response()->json([
             'success' => true,
@@ -55,7 +55,9 @@ class KegiatanController extends Controller
      */
     public function show($id)
     {
-        $kegiatan = Kegiatan::with(['relawan.user', 'galeri'])->findOrFail($id);
+        // Rute ini publik: hanya galeri yang dimuat. Data relawan (dan akun penggunanya) bersifat
+        // pribadi dan hanya boleh dibaca admin lewat /admin/relawan.
+        $kegiatan = Kegiatan::with(['galeri'])->findOrFail($id);
 
         return response()->json([
             'success' => true,
