@@ -12,15 +12,10 @@
       <div style="text-align:center; margin-bottom:8px;">
         <div style="display:inline-block; width:64px; height:64px; line-height:64px; border-radius:50%; background:#E8F5E9; color:#1a6b3a; font-size:32px;">&#10003;</div>
       </div>
-      <h1 style="font-size:22px; text-align:center; margin:12px 0 6px;">Donasi Terverifikasi</h1>
+      <h1 style="font-size:22px; text-align:center; margin:12px 0 6px;">{{ $judulSurel }}</h1>
 
-      <p style="font-size:16px; line-height:1.7;">Halo <strong>{{ $namaUser }}</strong>,</p>
-      <p style="font-size:16px; line-height:1.7;">
-        Donasi Anda sebesar <strong>{{ $jumlah }}</strong>
-        @if($kegiatan) untuk kegiatan <strong>{{ $kegiatan }}</strong> @endif
-        telah <strong style="color:#1a6b3a;">diverifikasi</strong> oleh tim Karinakas pada {{ $tanggal }}.
-        Terima kasih atas kebaikan hati Anda.
-      </p>
+      {{-- Isi pesan berasal dari templat yang disunting admin (Notifikasi → Template) --}}
+      <div style="font-size:16px; line-height:1.7;">{!! nl2br(e($isiSurel)) !!}</div>
 
       <div style="background:#FBF6EF; border-radius:12px; padding:16px 20px; margin:24px 0; font-size:14px; color:#555;">
         <strong>Rincian donasi</strong>
@@ -37,14 +32,6 @@
           @endif
           <tr><td style="padding:4px 0; color:#777;">Kegiatan</td><td style="padding:4px 0; text-align:right;">{{ $kegiatan ?: '-' }}</td></tr>
         </table>
-      </div>
-
-      <p style="font-size:16px; line-height:1.7;">
-        Donasi Anda akan digunakan untuk mendukung kegiatan sosial Yayasan Karinakas.
-      </p>
-
-      <div style="background:#FBF6EF; border-radius:12px; padding:16px 20px; margin:24px 0; font-size:14px; color:#555;">
-        <strong>Berkah Dalem,</strong><br>Tim Yayasan Karinakas
       </div>
 
       <p style="font-size:12px; color:#999; text-align:center; margin-top:24px;">

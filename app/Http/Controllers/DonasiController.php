@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\DonasiDiverifikasi;
 use App\Models\Donasi;
 use App\Models\Kegiatan;
 use App\Models\AuditLog;
@@ -175,7 +176,7 @@ class DonasiController extends Controller
                     'user_id' => $u?->id,
                     'tipe' => 'email',
                     'penerima' => $u?->email ?? '-',
-                    'judul' => 'Donasi Anda telah diverifikasi',
+                    'judul' => DonasiDiverifikasi::dari($fresh)->judulSurel(),
                     'trigger' => 'donasi_verified',
                     'status' => $terkirim ? 'terkirim' : 'gagal',
                 ]);

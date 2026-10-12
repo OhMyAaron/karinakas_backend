@@ -2,6 +2,8 @@
 
 namespace App\Mail;
 
+use App\Models\Relawan;
+use App\Support\TemplateNotifikasi;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
@@ -21,9 +23,39 @@ class RelawanDiterima extends Mailable
         $this->kegiatan = $kegiatan;
     }
 
+    /** Susun surel dari satu pendaftaran relawan (relasi user & kegiatan dimuat bila belum). */
+    public static function dari(Relawan $relawan): self
+    {
+        $relawan->loadMissing(['user', 'kegiatan']);
+
+        return new self(
+            $relawan->user?->nama_lengkap,
+            $relawan->jenis,
+            $relawan->kegiatan?->judul
+        );
+    }
+
+    /** Judul & isi surel dari templat "relawan" yang disunting admin. */
+    public function tersusun(): array
+    {
+        return TemplateNotifikasi::render('relawan', [
+            'nama'     => $this->namaUser,
+            'jenis'    => $this->jenis ?: '-',
+            'kegiatan' => $this->kegiatan ?: '-',
+        ]);
+    }
+
+    public function judulSurel(): string
+    {
+        return $this->tersusun()['judul'];
+    }
+
     public function build()
     {
-        return $this->subject('Pendaftaran Relawan Anda Diterima — Karinakas')
-                    ->view('emails.relawan-diterima');
+        $surel = $this->tersusun();
+
+        return $this->subject($surel['judul'])
+                    ->view('emails.relawan-diterima')
+                    ->with(['judulSurel' => $surel['judul'], 'isiSurel' => $surel['isi']]);
     }
 }

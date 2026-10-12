@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Mail\DonasiDiverifikasi;
+use App\Models\AuditLog;
 use App\Models\Donasi;
 use App\Models\NotifikasiLog;
+use App\Support\TemplateNotifikasi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
@@ -23,6 +25,44 @@ class NotifikasiController extends Controller
         return response()->json([
             'success' => true,
             'data' => $notif,
+        ]);
+    }
+
+    /**
+     * Templat surel (relawan diterima & donasi terverifikasi) yang berlaku saat ini.
+     * Admin & Super Admin (dibatasi middleware role pada rute).
+     */
+    public function templates()
+    {
+        return response()->json([
+            'success' => true,
+            'data' => TemplateNotifikasi::semua(),
+        ]);
+    }
+
+    /**
+     * Simpan templat surel. Isi tersimpan langsung dipakai pada surel berikutnya.
+     */
+    public function simpanTemplates(Request $request)
+    {
+        $data = $request->validate([
+            'relawan.judul'  => 'required|string|max:150',
+            'relawan.isi'    => 'required|string|max:5000',
+            'donatur.judul'  => 'required|string|max:150',
+            'donatur.isi'    => 'required|string|max:5000',
+        ], [
+            'required' => 'Judul dan isi pesan templat tidak boleh kosong.',
+            'max'      => 'Teks templat terlalu panjang.',
+        ]);
+
+        TemplateNotifikasi::simpan($data);
+
+        AuditLog::record($request->user(), 'Mengubah template notifikasi', 'Relawan & Donatur');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Template notifikasi berhasil disimpan',
+            'data' => TemplateNotifikasi::semua(),
         ]);
     }
 
@@ -95,15 +135,8 @@ class NotifikasiController extends Controller
             throw new \RuntimeException('Donatur tidak memiliki alamat surel');
         }
 
-        Mail::to($user->email)->send(new DonasiDiverifikasi(
-            $user->nama_lengkap,
-            $donasi->formatted_jumlah,
-            $donasi->tanggal_donasi->locale('id')->translatedFormat('d F Y'),
-            $donasi->metode_pembayaran,
-            $donasi->tujuan_donasi,
-            $donasi->kegiatan?->judul,
-            $donasi->id
-        ));
+        // Judul & isi surel mengikuti templat yang disunting admin (TemplateNotifikasi)
+        Mail::to($user->email)->send(DonasiDiverifikasi::dari($donasi));
 
         Log::info('Email donasi terverifikasi dikirim ke: ' . $user->email);
 

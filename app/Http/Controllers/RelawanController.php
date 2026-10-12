@@ -167,13 +167,11 @@ class RelawanController extends Controller
 
             // ── Email nyata (butuh SMTP di .env; jika MAIL_MAILER=log → tercatat di log) ──
             $emailStatus = 'terkirim';
+            // Judul & isi surel mengikuti templat yang disunting admin (TemplateNotifikasi)
+            $surel = RelawanDiterima::dari($fresh);
             if ($u && $u->email) {
                 try {
-                    Mail::to($u->email)->send(new RelawanDiterima(
-                        $u->nama_lengkap,
-                        $fresh->jenis,
-                        $fresh->kegiatan?->judul
-                    ));
+                    Mail::to($u->email)->send($surel);
                 } catch (\Throwable $e) {
                     $emailStatus = 'gagal';
                     Log::error('Gagal kirim email relawan diterima: ' . $e->getMessage());
@@ -183,7 +181,7 @@ class RelawanController extends Controller
                 'user_id' => $u?->id,
                 'tipe' => 'email',
                 'penerima' => $u?->email ?? '-',
-                'judul' => 'Selamat datang sebagai relawan Karinakas',
+                'judul' => $surel->judulSurel(),
                 'trigger' => 'relawan_approved',
                 'status' => $emailStatus,
             ]);

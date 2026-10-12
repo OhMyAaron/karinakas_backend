@@ -114,6 +114,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         
         // NOTIFIKASI & AUDIT LOG
         Route::get('/admin/notifikasi', [AdminController::class, 'notifikasiLogs']);
+        Route::get('/admin/notifikasi/template', [NotifikasiController::class, 'templates']);
+        Route::put('/admin/notifikasi/template', [NotifikasiController::class, 'simpanTemplates']);
         Route::get('/admin/audit', [AdminController::class, 'auditLogs']);
 
         // USERS MANAGEMENT (F36-F38)
