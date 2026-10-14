@@ -75,6 +75,15 @@ class RelawanController extends Controller
                     'message' => 'Anda sudah terdaftar di kegiatan ini',
                 ], 400);
             }
+        } else {
+            // Relawan umum (tanpa kegiatan): batasan unik (user_id, kegiatan_id) tidak menangkap
+            // nilai kosong, sehingga dicek di sini agar satu pengguna tidak mendaftar umum berulang.
+            if (Relawan::where('user_id', $user->id)->whereNull('kegiatan_id')->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda sudah memiliki pendaftaran relawan umum',
+                ], 400);
+            }
         }
 
         $relawan = Relawan::create([

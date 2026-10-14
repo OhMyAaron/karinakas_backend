@@ -41,7 +41,8 @@ class RelawanDiterima extends Mailable
         return TemplateNotifikasi::render('relawan', [
             'nama'     => $this->namaUser,
             'jenis'    => $this->jenis ?: '-',
-            'kegiatan' => $this->kegiatan ?: '-',
+            // Relawan umum tidak terikat kegiatan: hindari kalimat "untuk kegiatan -"
+            'kegiatan' => $this->kegiatan ?: 'umum Karinakas',
         ]);
     }
 
